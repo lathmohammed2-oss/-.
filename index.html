@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VANTA Mixer</title>
+<style>
+body {
+  margin: 0;
+  padding: 20px;
+  background: #090b12;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+.card {
+  max-width: 450px;
+  margin: 30px auto;
+  padding: 24px;
+  background: #151a29;
+  border: 1px solid #343b55;
+  border-radius: 22px;
+}
+h1 { color: #8d79ff; text-align: center; }
+p { color: #aeb8ce; }
+label { display: block; margin-top: 24px; }
+input { width: 100%; margin-top: 12px; accent-color: #8d79ff; }
+button {
+  width: 100%;
+  padding: 14px;
+  margin-top: 15px;
+  border: 0;
+  border-radius: 12px;
+  background: #8065ff;
+  color: white;
+  font-size: 17px;
+  font-weight: bold;
+}
+#status { text-align: center; color: #35dfb0; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>VANTA MIXER</h1>
+  <p>مكسر الصوت الخاص بيك 🎛️</p>
+  <p id="status">المايك متوقف</p>
+  <button onclick="startMic()">تشغيل المايك</button>
+  <button onclick="stopMic()" style="background:#30384e">إيقاف المايك</button>
+
+  <label>قوة الصوت: <span id="gv">100%</span></label>
+  <input id="gain" type="range" min="0" max="200" value="100">
+
+  <label>عمق الصوت Bass: <span id="bv">0</span></label>
+  <input id="bass" type="range" min="-12" max="18" value="0">
+
+  <label>الصدى Echo: <span id="ev">0%</span></label>
+  <input id="echo" type="range" min="0" max="70" value="0">
+
+  <p>⚠️ معالجة الصوت هنا داخل المتصفح فقط، مو مباشرة داخل تيك توك أو المكالمات.</p>
+</div>
+
+<script>
+let stream, audio, source, gain, bass, delay, echoGain;
+
+async function startMic() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    audio = new AudioContext();
+    await audio.resume();
+
+    source = audio.createMediaStreamSource(stream);
+    gain = audio.createGain();
+    bass = audio.createBiquadFilter();
+    bass.type = "lowshelf";
+    bass.frequency.value = 150;
+
+    delay = audio.createDelay(1);
+    delay.delayTime.value = 0.2;
+    echoGain = audio.createGain();
+
+    source.connect(gain);
+    gain.connect(bass);
+    bass.connect(audio.destination);
+    bass.connect(delay);
+    delay.connect(echoGain);
+    echoGain.connect(audio.destination);
+
+    update();
+    document.getElementById("status").textContent =
+      "المايك يعمل داخل المتصفح";
+  } catch(e) {
+    document.getElementById("status").textContent =
+      "اسمح للموقع باستخدام المايك وافتحه عبر HTTPS";
+  }
+}
+
+function stopMic() {
+  if(stream) stream.getTracks().forEach(t => t.stop());
+  if(audio) audio.close();
+  stream = audio = null;
+  document.getElementById("status").textContent = "المايك متوقف";
+}
+
+function update() {
+  document.getElementById("gv").textContent =
+    document.getElementById("gain").value + "%";
+  document.getElementById("bv").textContent =
+    document.getElementById("bass").value;
+  document.getElementById("ev").textContent =
+    document.getElementById("echo").value + "%";
+
+  if(gain) gain.gain.value =
+    Number(document.getElementById("gain").value) / 100;
+  if(bass) bass.gain.value =
+    Number(document.getElementById("bass").value);
+  if(echoGain) echoGain.gain.value =
+    Number(document.getElementById("echo").value) / 100;
+}
+
+["gain","bass","echo"].forEach(id =>
+  document.getElementById(id).addEventListener("input", update)
+);
+</script>
+</body>
+</html>
